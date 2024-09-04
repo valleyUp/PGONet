@@ -121,7 +121,7 @@ class PGONet(nn.Module):
 
         outputs1.append(x_temp7.clone())
 
-        second_last_state_forward = self.internal_state_forward.copy()
+        second_last_state_forward = []
 
         outputs1 = torch.cat(tuple(outputs1), dim=0)
         outputs2 = torch.cat(tuple(outputs2), dim=0)

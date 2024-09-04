@@ -12,9 +12,9 @@ font = {'family': 'Times New Roman',
 matplotlib.rc('font', **font)
 
 # 假设 file1.pt, file2.pt, file3.pt 已经被正确加载
-file1 = torch.load('D:/plotWaveEquation/Compare/o_temp.pt')[2:]  # 假设这是一个张量或张量列表
-file2 = torch.load('D:/plotWaveEquation/Compare/tensor_30943_0.pt')[2:]
-file3 = torch.load('D:/plotWaveEquation/Compare/u_res2_30000.pt')[1:]
+file1 = torch.load('./Compare/o_temp.pt')[2:]  # 假设这是一个张量或张量列表
+file2 = torch.load('./Compare/tensor_30943_0.pt')[2:]
+file3 = torch.load('./Compare/u_res2_50000.pt')[1:]
 # file1 = torch.load('./forward2.pt')  # 假设这是一个张量或张量列表
 # file2 = torch.load('./tensor_10000_0_T2.pt')
 # 索引列表，跳过 64

@@ -127,7 +127,7 @@ class CommandLineArgs:
             "--time",
             action="store",
             type=int,
-            default=256*float(float(1/100)),
+            default=64*float(float(1/25)),
             help="set simulation time of domain",
         )
 
@@ -197,7 +197,7 @@ class WaveEquation:
         self.y = self.x.copy()
         self.xx, self.yy = np.meshgrid(self.x, self.y)
 
-        self.dt = float(1/100)
+        self.dt = float(1/25)
 
     def initCond(self):
         self.vv = 1e3*np.exp(-((self.xx - 64) ** 2 + (self.yy - 64) ** 2)/100)
@@ -260,10 +260,10 @@ class NumericalSol:
         self.u_sol = simulator.solve()
 
 
-        dt = float(1/100) # spatial_discretisation and dt are fixed for ensuring numerical stability.
+        dt = float(1/25) # spatial_discretisation and dt are fixed for ensuring numerical stability.
 
         lb = np.asarray([0.0, 0.0, 0])  # [x, y, t] Lower Bounds of the domain
-        ub = np.asarray([128.0, 128.0, 256*float(float(1/100))])  # Upper Bounds of the domain
+        ub = np.asarray([128.0, 128.0, 64*float(float(1/25))])  # Upper Bounds of the domain
 
         x = np.linspace(0, 128, self.grid_size)
         y = x.copy()
@@ -323,7 +323,7 @@ class PINN(torch.nn.Module):
 
         x_temp = self.act_func(self.layer_input(x)).requires_grad_(True)
         for dense in self.layers:
-            x_temp = self.act_func(dense(x_temp))
+            x_temp = torch.tanh(dense(x_temp))
         x_temp = self.layer_output(x_temp)
         return x_temp
 
@@ -351,7 +351,7 @@ class LossFunctions:
     def __init__(self, simulation_time, model):
         self.x_range = [1.0, 126.0]
         self.y_range = [1.0, 126.0]
-        self.t_range = [0.01, 255*float(1/100)]
+        self.t_range = [0, 64*float(1/25)]
         self.D = 1.0
 
         self.model = model
@@ -490,8 +490,11 @@ class DataPrep:
         self.X_b = torch.load("./x_b.pt").cuda()
 
     def prep_domain(self):
-        self.X_f = self.loss_fnc.LHS_Sampling(50000)
-        #self.X_f = torch.load("./x_f.pt").cuda()
+        # self.X_f = torch.from_numpy(self.loss_fnc.LHS_Sampling(17232)).cuda()
+        # self.X_f = torch.cat((torch.load("./x_f.pt").cuda(),self.X_f),dim=0).cpu().numpy()
+        self.X_f = torch.load("./x_f.pt").cuda()
+        # self.X_f = self.loss_fnc.LHS_Sampling(50000)
+        # #print(self.X_f.shape)
 
     def convert_tensors(self):
         self.X_i = self.config_obj.torch_tensor_grad(self.X_i, self.config_obj.default_device)
@@ -529,11 +532,11 @@ class Training:
         self.model = model
 
         # random seed
-        seed = 42
+        seed = 114514
         torch.manual_seed(seed)
         np.random.seed(seed)
 
-        self.optimiser = torch.optim.AdamW(model.parameters(), lr=5e-4)
+        self.optimiser = torch.optim.AdamW(model.parameters(), lr=1e-3)
         #self.optimiser2 = torch.optim.LBFGS(model.parameters(), lr=1e-3)
         self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimiser, step_size=5000, gamma=0.98)
 
@@ -556,7 +559,7 @@ class Training:
             boundary_loss = self.loss_fnc.boundary(self.X_b)
             domain_loss = self.loss_fnc.pde(self.X_f)
 
-            loss = initial_loss + boundary_loss + domain_loss
+            loss = 1e3*(initial_loss + boundary_loss) + domain_loss
             self.loss_list.append(loss.item())
 
             loss.backward()
@@ -564,6 +567,14 @@ class Training:
             self.scheduler.step()
 
             it += 1
+
+            if it % 1000 == 0:
+                with torch.no_grad():
+                    u_pred = self.model(self.config_obj.torch_tensor_grad(self.X_star,
+                                                                          self.config_obj.default_device)).cpu().detach().numpy()
+                u_pred = u_pred.reshape(len(data.u), data.grid_length, data.grid_length)
+                outputs1 = torch.unsqueeze(torch.from_numpy(u_pred), dim=1)
+                torch.save(outputs1, './u_res2_'+str(it)+'.pt')
 
             print('Time: %.3f seconds, It: %d, Init: %.5f, Bound: %.3e, Domain: %.3e' % (
             time.time() - start_time, it, initial_loss.item(), boundary_loss.item(), domain_loss.item()))
@@ -590,8 +601,7 @@ class Training:
         print("Training Time: %d seconds" % (self.train_time))
         u_pred = u_pred.reshape(len(data.u), data.grid_length, data.grid_length)
         outputs1 = torch.unsqueeze(torch.from_numpy(u_pred), dim=1)
-        print(outputs1.shape)
-        torch.save(outputs1, './u_res2_30000.pt')
+        torch.save(outputs1, './u_res2_final.pt')
 
         return u_pred
 
@@ -653,7 +663,7 @@ if __name__ == "__main__":
 
     command_line = CommandLineArgs()
 
-    epochs = 30000
+    epochs = 50000
     #spartial_discretisation = command_line.args.n_steps
     simulation_time = command_line.args.time
     grid_size = command_line.args.grid_size
@@ -670,7 +680,7 @@ if __name__ == "__main__":
     u_sol = u_sol[1:]
     torch.save(outputs1, './u_sol_'+str(epochs)+'.pt')
 
-    model = PINN(in_features=3, out_features=1, num_layers=6, num_neurons=128)
+    model = PINN(in_features=3, out_features=1, num_layers=5, num_neurons=64)
     model = model.to(config.default_device)
 
     data = DataPrep(simulation_time, u_sol, numerical_sol.sol_dict, sample_dict, model, config)

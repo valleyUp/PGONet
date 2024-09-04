@@ -50,6 +50,6 @@ Any questions about the code can be directed to xiarui21@nudt.edu.cn.
 
 Due to the size limit of GitHub file transfer, we provide a more complete version on Baidu Netdisk.
 
-Site：https://pan.baidu.com/s/1L5ICYchoTiLvh5FzmbLoXA?pwd=co24 
-Code：co24 
+Site: https://pan.baidu.com/s/19EOrlFM9CkOVcWHafocvPg?pwd=p1io 
+Code: p1io
 

@@ -14,7 +14,7 @@ matplotlib.rc('font', **font)
 # 假设 file1.pt, file2.pt, file3.pt 已经被正确加载
 file1 = torch.load('./Compare/o_temp.pt')[2:]  # 假设这是一个张量或张量列表
 file2 = torch.load('./Compare/tensor_30943_0.pt')[2:]
-file3 = torch.load('./Compare/u_res2_30000.pt')[1:]
+file3 = torch.load('./Compare/u_res2_50000.pt')[1:]
 # file1 = torch.load('./forward2.pt')  # 假设这是一个张量或张量列表
 # file2 = torch.load('./tensor_10000_0_T2.pt')
 # 索引列表，跳过 64
@@ -25,7 +25,7 @@ cmap = cm.get_cmap('jet')
 fig, axs = plt.subplots(2, 7, figsize=(20, 10))
 fig.subplots_adjust(hspace=0.4, wspace=0.3)  # 调整子图间距
 
-norm = matplotlib.colors.Normalize(vmin=-1500,vmax=1500)
+norm = matplotlib.colors.Normalize(vmin=-500,vmax=500)
 
 zero = torch.zeros_like(file2[indices[0]].cuda())
 # 绘制每个子图并添加标题
