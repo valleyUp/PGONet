@@ -41,7 +41,7 @@ def get_phy_Loss(output1, c, size, loc_x, loc_y, dt, dx, fre):
 size= 4096+2
 dt = float(1/(8192*2))
 dx = 1
-fre = 64
+fre = 32
 n = 2
 Lx = Ly = 64*n # Length of the 2D domain
 
@@ -61,8 +61,8 @@ plt.show()
 
 
 #设置单点（单点声速预测）或多点声源（探测多障碍物）
-x1=[[int(30/dx)]]
-y1=[[int(30/dx)]]
+x1=[[int(40/dx)]]
+y1=[[int(40/dx)]]
 np.save('./case/Forward/x1.npy', x1)
 np.save('./case/Forward/y1.npy', y1)
 location = torch.ones((len(x1),2)).cuda()

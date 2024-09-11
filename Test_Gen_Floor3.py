@@ -9,8 +9,6 @@ from torch.utils.data import Dataset, DataLoader
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
-
-
 def get_phy_Loss(output1, c, size, loc_x, loc_y, dt, dx, fre):
     print(c)
     t_max = dt*(size-1)
@@ -46,14 +44,14 @@ fre = 25
 n = 2
 Lx = Ly = 64*n # Length of the 2D domain
 
-loc_x = [40*2,40*2,40*2,40*2,40*2,40*2,40*2,40*2,40*2,
-         35*2,35*2,35*2,35*2,35*2,35*2,35*2,35*2,35*2,
-         45*2,45*2,45*2,45*2,45*2,45*2,45*2,45*2,45*2]
-loc_y = [4,10,40,48,64,80,110,116,122,
-        4,16,32,48,64,80,96,112,124
-        ,2,6,44,50,58,64,70,116,124]
-np.save('./case/SeaFloor1/loc_x.npy', loc_x)
-np.save('./case/SeaFloor1/loc_y.npy', loc_y)
+loc_x = [30*2,30*2,30*2,30*2,30*2,30*2,30*2,30*2,30*2,
+        37.5*2,37.5*2,37.5*2,37.5*2,37.5*2,37.5*2,37.5*2,37.5*2,37.5*2,
+         43*2,43*2,43*2,43*2,43*2,43*2,43*2,43*2,43*2]
+loc_y = [4,16,32,48,64,80,96,112,124
+         ,12,24,36,48,60,72,84,96,108
+        ,24,32,40,48,56,64,72,84,96]
+np.save('./case/SeaFloor2/loc_x.npy', loc_x)
+np.save('./case/SeaFloor2/loc_y.npy', loc_y)
 
 tdx = 1  # 空间步长为0.01米
 tdy = 1
@@ -62,29 +60,28 @@ c = 1500 * torch.ones((64*n, 64*n)).cuda()  # 生成一个波速为45的张量�
 # for i in range(1, c.shape[1] - 1, 1):
 #     c[i, c.shape[1] - i:] = 0
 for i in range(64*n):
-    if i<16*n:
-        c[38*n+int(((16*n-i)**2)/((16*n) **2)*(15*n)):,i] = 0
-    elif i<32*n:
-        c[54*n-int(((32*n-i) ** 2) / ((16*n) ** 2) * (16*n)):, i] = 0
-    elif i<48*n:
-        c[40*n + int(((48*n - i) ** 2) / ((16*n) ** 2) * (14*n)):, i] = 0
+    if i<32*n:
+        c[50*n-int(((32*n-i)**2)/((32*n) **2)*(10*n)):,i] = 0
+    elif i<45*n:
+        c[50*n+int(((i-32*n) ** 2) / ((13*n) ** 2) * (5*n)):, i] = 0
     elif i<64*n:
-        c[40*n + int(((i - 48*n) ** 2) / ((16*n) ** 2) * (20*n)):, i] = 0
+        c[35*n + int(((64*n - i) ** 2) / ((19*n) ** 2) * (20*n)):, i] = 0
+
 
 cmap = cm.get_cmap('jet')
 plt.imshow(c.detach().cpu().numpy().squeeze(), cmap=cmap)
 plt.colorbar()
-plt.savefig('./case/SeaFloor1/speed.png')
+plt.savefig('./case/SeaFloor2/speed.png')
 plt.show()
 
 #设置时间步
 
 
 #设置单点（单点声速预测）或多点声源（探测多障碍物）
-x1=[[int(37.5*n),int(37.5*n),int(37.5*n),int(37.5*n),int(37.5*n)]]
-y1=[[5*n,20*n,35*n,50*n,60*n]]
-np.save('./case/SeaFloor1/x1.npy', x1)
-np.save('./case/SeaFloor1/y1.npy', y1)
+x1=[[int(35*n),int(40*n),int(40*n),int(40*n),int(32.5*n)]]
+y1=[[5*n,15*n,30*n,45*n,55*n]]
+np.save('./case/SeaFloor2/x1.npy', x1)
+np.save('./case/SeaFloor2/y1.npy', y1)
 location = torch.ones((len(x1),2)).cuda()
 
 output_s = torch.zeros((size*len(x1), 1, 64*n, 64*n)).cuda()
@@ -112,46 +109,8 @@ plt.imshow(output_s[-1].detach().cpu().numpy().squeeze(), cmap=cmap)
 plt.colorbar()
 plt.show()
 
-# ref_speed = torch.load('C:/Users/Xiarui/Downloads/OCA-NET-main/OCA-NET-main/res/speed_3050.pt')
-# cmap = cm.get_cmap('jet')
-# plt.imshow(torch.squeeze(ref_speed,dim=1).detach().cpu().numpy().squeeze(), cmap=cmap)
-# plt.colorbar()
-# plt.show()
-
-# bsize = 16+2
-# output_s1 = torch.zeros((output_s.shape[0]-2+2*int(output_s[2:].shape[0]/(bsize-2)),output_s.shape[1],output_s.shape[2],output_s.shape[3])).cuda()
-# for i in range(int(output_s[2:].shape[0]/(bsize-2))):
-#     output_s1[bsize*i:bsize*(i+1)] = output_s[(bsize-2)*i:2+(bsize-2)*(i+1)]
-# dataloader = DataLoader(dataset=output_s1, batch_size=bsize)
-# for data in dataloader:
-# 	print(data.shape)
-# 确保目录存在
-
-# directory = './FFT/'
-# if not os.path.exists(directory):
-#     os.makedirs(directory)
-
-# # 设定保存路径
-# depth = 100
-# num_files = int(output.shape[2] - depth/4)
-# for i in range(1, num_files):
-#     # 创建文件名，补全为四位数
-#     filename = f"{i*4:d}.txt"
-#     # 完整文件路径
-#     filepath = os.path.join(directory, filename)
-#
-#     # 打开文件以写入数据（如果文件已存在，则覆盖其内容）
-#     with open(filepath, 'w') as file:
-#         # 写入数据到文件
-#         for j in range(1024):
-#             # 生成两个随机数并用空格分隔
-#             data1 = 1 + j*float(1/1024)
-#             data2 = output[1024+j,0,int(depth/4),i].data
-#             # 写入一行数据
-#             file.write(f"{data1} {data2}\n")
-
 #保存文件
-torch.save(c,'./case/SeaFloor1/ref_speed.pt')
+torch.save(c,'./case/SeaFloor2/ref_speed.pt')
 print(output_s.shape)
-torch.save(output_s[:],'./case/SeaFloor1/o_temp.pt')
+torch.save(output_s[:],'./case/SeaFloor2/o_temp.pt')
 # torch.save(location,'./case/location.pt')

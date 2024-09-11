@@ -173,5 +173,5 @@ for i in range(1, num_files):
 #保存文件
 # torch.save(c,'./case/Forward1/ref_speed.pt')
 # print(output_s.shape)
-torch.save(output_s[:],'./Forward.pt')
+torch.save(output_s[:],'./Forward3.pt')
 # torch.save(location,'./case/location.pt')

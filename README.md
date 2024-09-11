@@ -32,8 +32,8 @@ keywords = {Ocean waveguide, Direct acoustic solver, Finite volume method, Wave 
 
 ```
 
-PINN_bench is a PINN benchmark comparison case, where Test.py is a program for generating boundaries and initial sampling points. 
-This program is modified from https://github.com/farscape-project/PINNs_Benchmark. Thanks to the provider.
+bench is a benchmark comparison case, where Test.py is a program for generating boundaries and initial sampling points. 
+This program is modified from https://github.com/farscape-project/PINNs_Benchmark and https://github.com/walkerchi/ETHz-DLSC_PartB. Thanks to the provider.
 
 The corresponding relationship between the case program is shown in the following table:
 
@@ -50,6 +50,5 @@ Any questions about the code can be directed to xiarui21@nudt.edu.cn.
 
 Due to the size limit of GitHub file transfer, we provide a more complete version on Baidu Netdisk.
 
-Site: https://pan.baidu.com/s/19EOrlFM9CkOVcWHafocvPg?pwd=p1io 
-Code: p1io
-
+Site: https://pan.baidu.com/s/1yhQK2Ij-scTe3QOtia3RWQ?pwd=n4gb 
+Code：n4gb 

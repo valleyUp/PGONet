@@ -49,6 +49,7 @@ from scipy import interpolate
 from matplotlib import pyplot as plt
 from pyDOE import lhs
 import torch
+import ffn
 
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
@@ -568,13 +569,13 @@ class Training:
 
             it += 1
 
-            if it % 1000 == 0:
+            if it % 5000 == 0:
                 with torch.no_grad():
                     u_pred = self.model(self.config_obj.torch_tensor_grad(self.X_star,
                                                                           self.config_obj.default_device)).cpu().detach().numpy()
                 u_pred = u_pred.reshape(len(data.u), data.grid_length, data.grid_length)
                 outputs1 = torch.unsqueeze(torch.from_numpy(u_pred), dim=1)
-                torch.save(outputs1, './u_res2_'+str(it)+'.pt')
+                torch.save(outputs1, './u_res2_'+str(it)+'_PINN.pt')
 
             print('Time: %.3f seconds, It: %d, Init: %.5f, Bound: %.3e, Domain: %.3e' % (
             time.time() - start_time, it, initial_loss.item(), boundary_loss.item(), domain_loss.item()))
@@ -601,7 +602,7 @@ class Training:
         print("Training Time: %d seconds" % (self.train_time))
         u_pred = u_pred.reshape(len(data.u), data.grid_length, data.grid_length)
         outputs1 = torch.unsqueeze(torch.from_numpy(u_pred), dim=1)
-        torch.save(outputs1, './u_res2_final.pt')
+        # torch.save(outputs1, './u_res2_final.pt')
 
         return u_pred
 
@@ -681,6 +682,7 @@ if __name__ == "__main__":
     torch.save(outputs1, './u_sol_'+str(epochs)+'.pt')
 
     model = PINN(in_features=3, out_features=1, num_layers=5, num_neurons=64)
+    #model = ffn.MLP(input_size=3,output_size=1,hidden_size=64,num_layers=5,activation='tanh',reset_parameters=True)
     model = model.to(config.default_device)
 
     data = DataPrep(simulation_time, u_sol, numerical_sol.sol_dict, sample_dict, model, config)

@@ -1,4 +1,3 @@
-'''PhyCRNet for solving spatiotemporal PDEs'''
 
 import torch
 import torch.nn as nn
@@ -87,7 +86,7 @@ class PreNet(nn.Module):
         self.num = n
         self.sigmoid_n = sigmoid_n
         self.ref_sol = torch.load('./case/SeaFloor3/o_temp.pt').cuda()
-        self.ref_sol2 = torch.zeros((self.ref_sol.shape[0], 1, 3, 13)).cuda()
+        self.ref_sol2 = torch.zeros((self.ref_sol.shape[0], 1, 3, 9)).cuda()
 
         self.fc74 = nn.Linear(3 * self.ref_sol2.shape[2] * self.ref_sol2.shape[3], 64)  # 第二层全连接层
         self.fc75 = nn.Linear(64, 64)  # 第二层全连接层
@@ -210,14 +209,14 @@ class PGONet(nn.Module):
 
         ntb = flag - 1
         step = flag_num - 1
-        x_tt = batch[ntb * bsize + step:ntb * bsize + step + 1].detach()
-        x_t = batch[ntb * bsize + step + 1:ntb * bsize + step + 2].detach()
+        #x_tt = batch[ntb * bsize + step:ntb * bsize + step + 1].detach()
+        #x_t = batch[ntb * bsize + step + 1:ntb * bsize + step + 2].detach()
 
         x_t4 = torch.zeros_like(x_t).cuda()
-        x_t4[:, :, 1:-1, 1:-1] = ((2 * x_t[:, :, 1:-1, 1:-1].detach() - x_tt[:, :, 1:-1, 1:-1].detach()) +
-                                  (x_t[:, :, 2:, 1:-1].detach() - 4 * x_t[:, :, 1:-1, 1:-1].detach() + x_t[:, :, :-2,
-                                                                                                       1:-1].detach()
-                                   + x_t[:, :, 1:-1, 2:].detach() + x_t[:, :, 1:-1, :-2].detach()) * (
+        x_t4[:, :, 1:-1, 1:-1] = ((2 * x_t[:, :, 1:-1, 1:-1] - x_tt[:, :, 1:-1, 1:-1]) +
+                                  (x_t[:, :, 2:, 1:-1] - 4 * x_t[:, :, 1:-1, 1:-1] + x_t[:, :, :-2,
+                                                                                                       1:-1]
+                                   + x_t[:, :, 1:-1, 2:] + x_t[:, :, 1:-1, :-2]) * (
                                           ref_speed[:, :, 1:-1, 1:-1].detach() ** 2) * (self.dt ** 2) / (self.dx ** 2))
 
         outputs3.append(x_t4)
@@ -233,14 +232,14 @@ class PGONet(nn.Module):
                                                                                                               :, :,
                                                                                                               1:-1,
                                                                                                               :-2]) * (
-                                             ref_speed[:, :, 1:-1, 1:-1].detach() ** 2) * (self.dt ** 2) / (
+                                             ref_speed[:, :, 1:-1, 1:-1] ** 2) * (self.dt ** 2) / (
                                              self.dx ** 2))
         outputs2.append(x_temp7.clone())
         x_temp7[:, :, 0, :] = 0
-        x_temp7[:, :, :, 0:1] = x_t[:, :, :, 0:1] - self.dt * ref_speed[:, :, :, 0:1].detach() * (
+        x_temp7[:, :, :, 0:1] = x_t[:, :, :, 0:1] - self.dt * ref_speed[:, :, :, 0:1] * (
                 x_t[:, :, :, 0:1] - x_t[:, :, :, 1:2]) / self.dx
 
-        x_temp7[:, :, :, -1:] = x_t[:, :, :, -1:] - self.dt * ref_speed[:, :, :, -1:].detach() * \
+        x_temp7[:, :, :, -1:] = x_t[:, :, :, -1:] - self.dt * ref_speed[:, :, :, -1:] * \
                                 (x_t[:, :, :, -1:] - x_t[:, :, :, -2:-1]) / self.dx
 
         for idx in range(len(loc_x)):
@@ -318,34 +317,18 @@ class loss_generator(nn.Module):
 
         return local_res
 
-    def get_phy_Loss1(self, output, c, bsize1, id2, loc_x, loc_y, coffe):
-        output1 = torch.squeeze(output, dim=1)
-        output3 = torch.zeros_like(output1[:2+int(coffe*bsize1), :, :]).cuda()
-        output3[0:1, :, :] = output[0:1, :, :, :].squeeze(dim=1)
-        output3[1:2, :, :] = output[1:2, :, :, :].squeeze(dim=1)
-
-        dt = self.dttt
-        dx = dy = self.dxx
-        t_max = dt*(int(coffe*bsize1)+1)
-        r1, r2 = ((dt**2)*(c**2))/ (dx ** 2),((dt**2)*(c**2))/ (dy ** 2)
-        for n in range(1, int(t_max / dt)):
-            # 在内部节点上使用五点差分法计算新的波场
-            output3[(n+1), 1:-1, 1:-1] = ( 2 * output3[n, 1:-1, 1:-1] - output3[n - 1, 1:-1, 1:-1]) + \
-                                           r1[:,:,1:-1,1:-1]* (
-                                                   output3[n, 2:, 1:-1] - 2 * output3[n, 1:-1, 1:-1] + output3[n,
-                                                                                                       :-2, 1:-1]) + \
-                                           r2[:,:,1:-1,1:-1]*(
-                                                   output3[n, 1:-1, 2:] - 2 * output3[n, 1:-1, 1:-1] + output3[n,
-                                                                                                       1:-1, :-2])
-            for i in range(len(loc_x)):
-                if loc_x[i] != -1:
-                    output3[n + 1, int(loc_x[i]), int(loc_y[i])] = 1500 * np.sin(2 * 3.1415926 * self.fre * (bsize1 * id2 + n + 1) * dt)
-            output3[n + 1, 0, :] = 0
-            output3[n + 1, :, 0:1] = output3[n, :, 0:1] - dt * c[:,:,:, 0:1] * (output3[n, :, 0:1] - output3[n, :, 1:2]) / dx
-            output3[n + 1, :, -1:] = output3[n, :, -1:] - dt * c[:,:,:, -1:] * (output3[n, :, -1:] - output3[n, :, -2:-1]) / dx
-            #output3[n + 1, -1, :] = output3[n, -1, : ] - dt * c[:,:,-1, :] * (output3[n, -1:, :] - output3[n, -2:-1, :]) / dx
-
-        return torch.unsqueeze(output3[2:,:,:], dim=1)
+    def get_phy_Loss1(self, model, output, c, bsize1, id2, loc_x, loc_y, coffe):
+        output3 = torch.zeros_like(output[:2 + int(coffe * bsize1), :, :, :]).cuda()
+        output3[0:1, :, :, :] = output[0:1, :, :, :]
+        output3[1:2, :, :, :] = output[1:2, :, :, :]
+        for flag_num in range(0, output3.shape[0] - 2, 1):
+            _, output1, _, _, _, _ \
+                = model(c, int(bsize1 * coffe), id2, loc_x, loc_y,
+                        output3, 1, flag_num + 1, output3[flag_num:flag_num + 1], output3[flag_num + 1:flag_num + 2])
+            # print(F.mse_loss(output1[2:3],output[2+flag_num:3+flag_num]))
+            output3[2 + flag_num:3 + flag_num] = output1[2:3].clone()
+            # print(F.mse_loss(output1[2:3], output3[2 + flag_num:3 + flag_num]))
+        return output3[2:, :, :, :]
 
 def compute_loss(output71, output2, output3, loss_func, id, id2,
                  bsize, bsize1, coffe, flag_num,
@@ -370,7 +353,7 @@ def compute_loss(output71, output2, output3, loss_func, id, id2,
         if id2 >= coffe * num_batch_size2:
             batch[id * (bsize + 2) + id2 * bsize1 + 2 + i:id * (bsize + 2) + id2 * bsize1 + 3 + i] =output71[2: 3]
 
-    if i==flag_num-1 and (((t_epoch>=3000 or p_res< 1) and (id2!=0 or i!=0)) or t_epoch == 30000):
+    if i==flag_num-1 and (((t_epoch>=300 or p_res< 1) and (id2!=0 or i!=0)) or t_epoch == 3000):
         flag_num += 1
         t_flag =True
         t_epoch = 0
@@ -378,7 +361,7 @@ def compute_loss(output71, output2, output3, loss_func, id, id2,
     t_loss = 1 / (max(last_loss_weight, 1)) * p_local + p_res
     return t_loss, p_local, p_res, p_local2, flag_num, batch, t_flag, t_epoch, x_tt, x_t
 
-def compute_loss_p(output71, loss_func, ntb, ref_speed, bsize, last_loss_weight, size_batch, last_ref_speed, coffe, epoch):
+def compute_loss_p(model, output71, loss_func, ntb, ref_speed, bsize, last_loss_weight, size_batch, last_ref_speed, coffe, epoch):
     ''' calculate the phycis loss '''
 
     mse_loss = nn.MSELoss(reduction='mean')
@@ -403,7 +386,7 @@ def compute_loss_p(output71, loss_func, ntb, ref_speed, bsize, last_loss_weight,
             if idx!=0:
                 output714[0:1] = x_tt1
                 output714[1:2] = x_t1
-            output11_3 = loss_func.get_phy_Loss1(output714.clone(), ref_speed, bsize, size_batch, id, idx, x1[id], y1[id], 1)
+            output11_3 = loss_func.get_phy_Loss1(model, output714.clone(), ref_speed, size_batch, idx, x1[id], y1[id], 1)
             x_tt1 = output11_3[-2:-1].clone()
             x_t1 = output11_3[-1:].clone()
             output81 = output71[id*(bsize+2)+idx*size_batch:id*(bsize+2)+(idx+1)*size_batch+2]
@@ -486,9 +469,9 @@ def train(model, model1, input, n_iters, n_iters1, n_iters2, time_batch_size,
                 num_time_batch2 = int((batch.shape[0] - 2) / size_batch)
 
                 for time_batch_id in range(flag_num[step] - 1, flag_num[step], 1):
-                    if time_batch_id == 0 and temp_num - 1 == 0:
-                        x_tt = batch[0:1, :, :, :].detach()
-                        x_t = batch[1:2, :, :, :].detach()
+                    ntb = flag_num[step] - 1
+                    x_tt = input[ntb * size_batch + temp_num - 1: ntb * size_batch + temp_num].detach()
+                    x_t = input[ntb * size_batch + temp_num: ntb * size_batch + temp_num + 1].detach()
 
                     # output is a list
                     ref_speed = ref_speed.detach()
@@ -551,11 +534,11 @@ def train(model, model1, input, n_iters, n_iters1, n_iters2, time_batch_size,
 
         epoch2 = 0
         if epoch!=0:
-            n_iters2 = 250
+            n_iters2 = 100
         for epoch2 in range(n_iters2):
             ref_speed1 = model1(output_t1, time_batch_size, num_time_batch)
             loss_p, loss_1, loss_2, loss_3, output_t = \
-                compute_loss_p(output_t1.clone().detach(), loss_func2, num_time_batch, ref_speed1, time_batch_size, last_loss_weight1, size_batch, last_ref_speed, tc, epoch)
+                compute_loss_p(model, output_t1.clone().detach(), loss_func2, num_time_batch, ref_speed1, time_batch_size, last_loss_weight1, size_batch, last_ref_speed, tc, epoch)
             optimizer_p.zero_grad()
             loss_p.backward()
             optimizer_p.step()
@@ -574,7 +557,7 @@ def train(model, model1, input, n_iters, n_iters1, n_iters2, time_batch_size,
             nowtime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             print("--------------------------------------------------------------------")
             print(f"epoch【{epoch + 1}】@{nowtime} sub_epoch【{epoch2 + 1}】 evaluate speed")
-            print(f"loss_p = {loss_p.item():.2f}, loss_p_true = {loss_1:.2f}, loss_p_sim = {loss_2.item():.2f}, loss_p_speed = {loss_3.item():.2f}")
+            print(f"loss_p = {loss_p.item():.2f}, loss_p_field = {loss_1:.2f}, loss_p_speed = {loss_2.item():.2f}, loss_p_ref = {loss_3.item():.2f}")
         last_ref_speed = ref_speed.clone().detach()
 
 
@@ -629,9 +612,9 @@ if __name__ == '__main__':
     steps = time_batch_size + 1
     effective_step = list(range(0, steps))
     num_time_batch = int(time_steps / (time_batch_size + 2))
-    n_iters_adam = 10
+    n_iters_adam = 50
     n_iters_adam1 = 9999999
-    n_iters_adam2 = 500
+    n_iters_adam2 = 200
     pre_model_save_path = './checkpoint' \
                           '500.pt'
     model_save_path = './checkpoint1000.pt'

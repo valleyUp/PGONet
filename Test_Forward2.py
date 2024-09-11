@@ -41,7 +41,7 @@ def get_phy_Loss(output1, c, size, loc_x, loc_y, dt, dx, fre):
 size= 4096+2
 dt = float(1/(8192*2))
 dx = 1
-fre = 32
+fre = 64
 n = 2
 Lx = Ly = 64*n # Length of the 2D domain
 

@@ -15,12 +15,12 @@ matplotlib.rc('font', **font)
 #file1 = torch.load('D:/res/Boundary1/o_temp.pt')  # 假设这是一个张量或张量列表
 #file2 = torch.load('D:/plotWaveEquation/tensor_10000_0_B.pt')
 
-file1 = torch.load('./boundary.pt')  # 假设这是一个张量或张量列表
-file2 = torch.load('./tensor_44494_0_B.pt')
+file1 = torch.load('./Forward3.pt')  # 假设这是一个张量或张量列表
+file2 = torch.load('./tensor_34095_0_T4.pt')
 print(torch.max(file1))
 print(torch.max(file2))
 # 索引列表，跳过 64
-indices = [72, 80, 88, 96, 108, 116, 126]
+indices = [1+int(4096/7), 1+int(4096/7*2),1+int(4096/7*3),1+int(4096/7*4),1+int(4096/7*5),1+int(4096/7*6),1+int(4096/7*7)]
 cmap = cm.get_cmap('jet')
 
 # 创建一个图形和子图
@@ -34,10 +34,10 @@ for idx in range(14):
     ax = axs.flat[idx]  # 扁平化访问
     if idx < 7:  # 第一行
         img = file1[indices[idx]].cpu().numpy()  # 假设 file1 是张量列表或可以直接索引
-        title = f'FDM, {(indices[idx])*float(1/1024):.3f}s'
+        title = f'FDM, {(indices[idx]-1)*float(1/16384):.3f}s'
     elif idx < 14:  # 第二行
         img = file2[indices[idx-7]].detach().cpu().numpy()
-        title = f'PGONet, {(indices[idx-7])*float(1/1024):.3f}s'
+        title = f'PGONet, {(indices[idx-7]-1)*float(1/16384):.3f}s'
 
     # 假设 img 是二维的（例如灰度图像），如果是三维（例如 RGB），请相应调整
     im = ax.imshow(img.squeeze(), cmap=cmap, norm=norm)  # 使用 viridis 颜色映射

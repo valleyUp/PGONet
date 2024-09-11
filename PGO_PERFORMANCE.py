@@ -1,4 +1,4 @@
-'''PhyCRNet for solving spatiotemporal PDEs'''
+
 
 import torch
 import torch.nn as nn
@@ -51,6 +51,8 @@ class PGONet(nn.Module):
         self.fre = fre
         self.dt = dt
         self.dx = dx
+        self.time_all = 0
+        self.time_count = 0
 
         # ConvLSTM(Forward)
         self.input_layer9 = weight_norm(nn.Conv2d(3, 1, kernel_size=(3,3), stride=1,
@@ -77,7 +79,6 @@ class PGONet(nn.Module):
         step = flag_num - 1
         x_tt = batch[ntb *bsize+step:ntb *bsize+step+1].detach()
         x_t = batch[ntb *bsize+step+1:ntb *bsize+step+2].detach()
-
 
         x_t4 = torch.zeros_like(x_t).cuda()
         x_t4[:, :, 1:-1, 1:-1] = ((2 * x_t[:, :, 1:-1, 1:-1].detach() - x_tt[:, :, 1:-1, 1:-1].detach() ) +

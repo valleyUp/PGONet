@@ -86,13 +86,13 @@ class PGONet(nn.Module):
         outputs2.append(x_t)
         ntb = flag - 1
         step = flag_num - 1
-        x_tt = batch[ntb *bsize+step:ntb *bsize+step+1].detach()
-        x_t = batch[ntb *bsize+step+1:ntb *bsize+step+2].detach()
+        # x_tt = batch[ntb *bsize+step:ntb *bsize+step+1]
+        # x_t = batch[ntb *bsize+step+1:ntb *bsize+step+2]
         x_t4 = torch.zeros_like(x_t).cuda()
-        x_t4[:, :, 1:-1, 1:-1] = ((2 * x_t[:, :, 1:-1, 1:-1].detach() - x_tt[:, :, 1:-1, 1:-1].detach() ) +
-                                  (x_t[:,:, 2:, 1:-1].detach()  - 4 * x_t[:,:, 1:-1, 1:-1].detach()  + x_t[:,:,:-2, 1:-1].detach()
-                                   + x_t[:,:, 1:-1, 2:].detach()  + x_t[:,:,1:-1, :-2].detach() ) * (
-                    ref_speed[:, :, 1:-1, 1:-1].detach()  ** 2) * (self.dt ** 2) / (self.dx ** 2))
+        x_t4[:, :, 1:-1, 1:-1] = ((2 * x_t[:, :, 1:-1, 1:-1] - x_tt[:, :, 1:-1, 1:-1] ) +
+                                  (x_t[:,:, 2:, 1:-1]  - 4 * x_t[:,:, 1:-1, 1:-1]  + x_t[:,:,:-2, 1:-1]
+                                   + x_t[:,:, 1:-1, 2:] + x_t[:,:,1:-1, :-2]) * (
+                    ref_speed[:, :, 1:-1, 1:-1]  ** 2) * (self.dt ** 2) / (self.dx ** 2))
         outputs3.append(x_t4.clone())
         x_t1 = torch.concat((x_tt, x_t, ref_speed), dim=1)
         x_temp7 = self.input_layer9(x_t1)
@@ -104,15 +104,15 @@ class PGONet(nn.Module):
                                                                                                               :, :,
                                                                                                               1:-1,
                                                                                                               :-2]) * (
-                                             ref_speed[:, :, 1:-1, 1:-1].detach() ** 2) * (self.dt ** 2) / (
+                                             ref_speed[:, :, 1:-1, 1:-1] ** 2) * (self.dt ** 2) / (
                                                  self.dx ** 2))
         outputs2.append(x_temp7.clone())
         x_temp7[:, :, 0, :] = 0
-        x_temp7[:, :, :, 0:1] = x_t[:, :, :, 0:1] - self.dt * ref_speed[:, :, :, 0:1].detach() * (
+        x_temp7[:, :, :, 0:1] = x_t[:, :, :, 0:1] - self.dt * ref_speed[:, :, :, 0:1] * (
                 x_t[:, :, :, 0:1] - x_t[:, :, :, 1:2]) / self.dx
         for i in range(1, x_temp7.shape[2] - 1, 1):
             x_temp7[:, :, i, x_temp7.shape[2] - i] = x_t[:, :, i - 1, x_temp7.shape[2] - 1 - i]
-        x_temp7[:, :, :, -1:] = x_t[:, :, :, -1:] - self.dt * ref_speed[:, :, :, -1:].detach() * \
+        x_temp7[:, :, :, -1:] = x_t[:, :, :, -1:] - self.dt * ref_speed[:, :, :, -1:] * \
                                 (x_t[:, :, :, -1:] - x_t[:, :, :, -2:-1]) / self.dx
         x_temp7[:, :, -1, :] = 0
         if (step + id * bsize + 2) * dt < 0.01:
@@ -228,12 +228,9 @@ def train(model, input, n_iters, time_batch_size,
             # if time_batch_id == 0:
             num_time_batch2 = int((batch.shape[0]-2)/size_batch)
             for time_batch_id in range(flag_num[step]-1,flag_num[step],1):
-                if time_batch_id == 0 and temp_num-1 == 0:
-                    x_tt = batch[0:1, :, :, :].detach()
-                    x_t = batch[1:2, :, :, :].detach()
-                else:
-                    x_tt = batch[size_batch*time_batch_id:size_batch*time_batch_id+1, :, :, :].detach()
-                    x_t = batch[size_batch*time_batch_id+1:size_batch*time_batch_id+2, :, :, :].detach()
+                ntb = flag_num[step] - 1
+                x_tt = input[ntb * size_batch + temp_num - 1: ntb * size_batch + temp_num].detach()
+                x_t = input[ntb * size_batch + temp_num: ntb * size_batch + temp_num + 1].detach()
 
                 # output is a list
                 ref_speed = ref_speed.detach()
@@ -282,7 +279,7 @@ def train(model, input, n_iters, time_batch_size,
                         state_detached1.append((h, c))
                 train_dataloader = DataLoader(input, time_batch_size + 2, shuffle=False)
         if epoch % 50000 == 0 and epoch != 0:
-            torch.save(input, './res/tensor_boundary/tensor_' + str(epoch) + '_' + str(step) + '.pt')
+            torch.save(input, './res/Boundary/tensor_' + str(epoch) + '_' + str(step) + '.pt')
         t_epoch += 1
         nowtime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         print("--------------------------------------------------------------------")
@@ -290,7 +287,7 @@ def train(model, input, n_iters, time_batch_size,
         print(f"loss= {batch_loss:.2f}, loss_res= {batch_loss2:.2f},loss_local={batch_loss3:.2f}, loss_true={batch_loss4:.2f}, alpha={alpha:.3f}")
         if tt_flag:
             print("save")
-            torch.save(input, './res/tensor_boundary/tensor_' + str(epoch) + '_' + str(step) + '.pt')
+            torch.save(input, './res/Boundary/tensor_' + str(epoch) + '_' + str(step) + '.pt')
             break
 
 def count_parameters(model):
@@ -358,5 +355,5 @@ if __name__ == '__main__':
     train_loss = train(model, input_tensor, n_iters_adam, time_batch_size, dt, dx, n, fre)
     end = time.time()
 
-    np.save('./res/tensor_boundary/train_loss', train_loss)
+    np.save('./res/Boundary/train_loss', train_loss)
     print('The training time is: ', (end - start))

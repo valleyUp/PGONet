@@ -50,16 +50,13 @@ tdx = 1  # 空间步长为0.01米
 tdy = 1
 
 c = 1500 * torch.ones((64*n, 64*n)).cuda()  # 生成一个波速为45的张量（可根据测试需要调整）
-c[13:20,33:35]=340
-c[24:28,102:106]=340
-c[86:92,86:90]=340
-c[95:102,25:32]=340
-
+c[22:27,103:109]=340
+c[98:105,16:19]=340
 
 cmap = cm.get_cmap('jet')
 plt.imshow(c.detach().cpu().numpy().squeeze(), cmap=cmap)
 plt.colorbar()
-plt.savefig('./case/MultiObs/speed.png')
+plt.savefig('./case/MultiObs1/speed.png')
 plt.show()
 
 #设置时间步
@@ -68,14 +65,12 @@ plt.show()
 #设置单点（单点声速预测）或多点声源（探测多障碍物）
 x1=[[10*n,10*n,50*n,50*n,32*n]]
 y1=[[10*n,50*n,10*n,50*n,32*n]]
-np.save('./case/MultiObs/x1.npy', x1)
-np.save('./case/MultiObs/y1.npy', y1)
+np.save('./case/MultiObs1/x1.npy', x1)
+np.save('./case/MultiObs1/y1.npy', y1)
 location = torch.ones((len(x1),2)).cuda()
 
 output_s = torch.zeros((size*len(x1), 1, 64*n, 64*n)).cuda()
 for i in range(len(x1)):
-    # location[i,0]=x1[i]
-    # location[i,1]=y1[i]
     u = np.zeros((2, 64*n, 64*n))
     output = torch.zeros((size, 64*n, 64*n)).cuda()
     x = np.arange(0, Lx, tdx)
@@ -85,8 +80,7 @@ for i in range(len(x1)):
     for idx in range(len(x1[i])):
         u[0, x1[i][idx], y1[i][idx]] = 1500 * np.sin(2 * 3.1415926 * fre * 0 * dt)
         u[1, x1[i][idx], y1[i][idx]] = 1500 * np.sin(2 * 3.1415926 * fre * 1 * dt)
-    # u[0,:,:] += 10*np.exp(-((X - x1[i]) ** 2 + (Y - y1[i]) ** 2)/100)
-    # u[1,:,:] += 10*np.exp(-((X - x1[i]) ** 2 + (Y - y1[i]) ** 2)/100)
+
     u = torch.from_numpy(u)
     output[0:2,:,:] = u[0:2,:,:]
     output=get_phy_Loss(output,c,size,x1[i],y1[i],dt,dx,fre)
@@ -97,8 +91,9 @@ plt.imshow(output_s[-1].detach().cpu().numpy().squeeze(), cmap=cmap)
 plt.colorbar()
 plt.show()
 
+
 #保存文件
-torch.save(c,'./case/MultiObs/ref_speed.pt')
+torch.save(c,'./case/MultiObs1/ref_speed.pt')
 print(output_s.shape)
-torch.save(output_s[:],'./case/MultiObs/o_temp.pt')
+torch.save(output_s[:],'./case/MultiObs1/o_temp.pt')
 # torch.save(location,'./case/location.pt')

@@ -4,6 +4,7 @@ import numpy as np
 import math
 import matplotlib.pyplot as plt
 from matplotlib import cm
+import time
 from torch.utils.data import Dataset, DataLoader
 
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
@@ -19,9 +20,13 @@ def get_phy_Loss(output1, c, size, loc_x, loc_y, dt, dx, fre):
     output1[:, :, 0:1] = 0
     output1[:, :, -1:] = 0
     output1[:, -1, :] = 0
+
+    all_time = 0
+    count = 0
     for n in range(1, int(t_max / dt)):
         # 在边界处设置固定边界条件
         # 在内部节点上使用五点差分法计算新的波场
+        start = time.time()
         output1[(n + 1), 1:-1, 1:-1] = 2 * output1[n, 1:-1, 1:-1] - output1[n - 1, 1:-1, 1:-1] + \
                                            r1[1:-1, 1:-1] * (output1[n, 2:, 1:-1] - 2 * output1[n, 1:-1, 1:-1] + output1[n,:-2, 1:-1]) + \
                                            r2[1:-1, 1:-1] * (output1[n, 1:-1, 2:] - 2 * output1[n, 1:-1, 1:-1] + output1[n,1:-1, :-2])
@@ -32,7 +37,12 @@ def get_phy_Loss(output1, c, size, loc_x, loc_y, dt, dx, fre):
         output1[:, :, -1:] = 0
         output1[:, -1, :] = 0
         #output1[n+1, -1, :] = 0
-    print(sum)
+        end = time.time() - start
+        print(end)
+        if n!=1:
+            all_time += end
+            count += 1
+    print('The training time is: ', float(all_time/count))
 
     return torch.unsqueeze(output1, dim=1)
 
@@ -48,7 +58,7 @@ Lx = Ly = 64*n # Length of the 2D domain
 tdx = 1  # 空间步长为0.01米
 tdy = 1
 
-c = 1500 * torch.ones((64*n, 64*n)).cuda()  # 生成一个波速为45的张量（可根据测试需要调整）
+c = 1500 * torch.ones((64*n, 64*n)).cuda() # 生成一个波速为45的张量（可根据测试需要调整）
 
 
 cmap = cm.get_cmap('jet')

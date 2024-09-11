@@ -15,7 +15,7 @@ matplotlib.rc('font', **font)
 # file1 = torch.load('D:/res/Boundary1/o_temp.pt')  # 假设这是一个张量或张量列表
 # file2 = torch.load('D:/plotWaveEquation/tensor_10000_0.pt')
 file1 = ['./Sea/1/ref_speed.pt','./Sea/2/ref_speed.pt','./Sea/3/ref_speed.pt','./Sea/4/ref_speed.pt']
-file2 = ['./Sea/1/speed_9_249.pt','./Sea/2/speed_9_249.pt','./Sea/3/speed_9_249.pt','./Sea/4/speed_9_249.pt']
+file2 = ['./Sea/1/speed_49_99.pt','./Sea/2/speed_49_99.pt','./Sea/3/speed_49_99.pt','./Sea/4/speed_49_99.pt']
 file3 = ['./Sea/1/x1.npy','./Sea/2/x1.npy','./Sea/3/x1.npy','./Sea/4/x1.npy']
 file4 = ['./Sea/1/y1.npy','./Sea/2/y1.npy','./Sea/3/y1.npy','./Sea/4/y1.npy']
 file5 = ['./Sea/1/loc_x.npy','./Sea/2/loc_x.npy','./Sea/3/loc_x.npy','./Sea/4/loc_x.npy']

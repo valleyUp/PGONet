@@ -62,8 +62,8 @@ plt.show()
 
 
 #设置单点（单点声速预测）或多点声源（探测多障碍物）
-x1=[[int(40/dx)]]
-y1=[[int(40/dx)]]
+x1=[[int(30/dx)]]
+y1=[[int(30/dx)]]
 np.save('./case/Forward2/x1.npy', x1)
 np.save('./case/Forward2/y1.npy', y1)
 location = torch.ones((len(x1),2)).cuda()

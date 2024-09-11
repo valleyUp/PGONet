@@ -55,7 +55,17 @@ for i in range(32):
 
 torch.save(x_f,'./x_f.pt')
 #torch.save(true_f,'./t_f.pt')
+x_f = torch.ones((63*63* 16, 3)).cuda()
+true_f = torch.ones((63*63* 16, 1)).cuda()
+for i in range(16):
+    for j in range(63):
+        for k in range(63):
+            x_f[i * 63*63 + j * 63 + k, 2] = (i + 1) * 4 * float(1/25)
+            x_f[i * 63*63 + j * 63 + k, 0] = (j * 2 + 1)
+            x_f[i * 63*63 + j * 63 + k, 1] = (k * 2 + 1)
+            #true_f[i * 63 * 63 + j * 63 + k, 0] = temp[i + 2:i + 3, :, j+1, k + 1].item()
 
+torch.save(x_f,'./x_f2.pt')
 
 x_b = torch.ones((4 * 128 * 64, 3)).cuda()
 for i in range(64):

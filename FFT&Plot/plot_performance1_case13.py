@@ -13,8 +13,10 @@ matplotlib.rc('font', **font)
 
 # 假设 file1.pt, file2.pt, file3.pt 已经被正确加载
 file1 = torch.load('./Compare/o_temp.pt')[2:]  # 假设这是一个张量或张量列表
-file2 = torch.load('./Compare/tensor_30943_0.pt')[2:]
-file3 = torch.load('./Compare/u_res2_50000.pt')[1:]
+file2 = torch.load('./Compare/tensor_32146_0_PGONet_CR.pt')[2:]
+file3 = torch.load('./Compare/tensor_219000_0_PGONet_NOCR.pt')[2:]
+file4 = torch.load('./Compare/u_res2_50000_PINN.pt')[1:]
+file5 = torch.load('./Compare/u_res2_50000_UNet.pt')[1:]
 # file1 = torch.load('./forward2.pt')  # 假设这是一个张量或张量列表
 # file2 = torch.load('./tensor_10000_0_T2.pt')
 # 索引列表，跳过 64
@@ -22,23 +24,29 @@ indices = [15, 23, 31, 39, 47, 55, 63]
 cmap = cm.get_cmap('jet')
 
 # 创建一个图形和子图
-fig, axs = plt.subplots(3, 7, figsize=(20, 10))
+fig, axs = plt.subplots(5, 7, figsize=(20, 10))
 fig.subplots_adjust(hspace=0.4, wspace=0.3)  # 调整子图间距
 
-norm = matplotlib.colors.Normalize(vmin=-500,vmax=500)
+norm = matplotlib.colors.Normalize(vmin=-250,vmax=250)
 
 # 绘制每个子图并添加标题
-for idx in range(21):
+for idx in range(35):
     ax = axs.flat[idx]  # 扁平化访问
     if idx < 7:  # 第一行
         img = file1[indices[idx]].cpu().numpy()  # 假设 file1 是张量列表或可以直接索引
         title = f'FDM, {(indices[idx])*float(1/25):.3f}s'
     elif idx < 14:  # 第二行
         img = file2[indices[idx-7]].detach().cpu().numpy()
-        title = f'PGONet, {(indices[idx-7])*float(1/25):.3f}s'
+        title = f'PGONet \n with RC, {(indices[idx-7])*float(1/25):.3f}s'
     elif idx < 21:  # 第二行
         img = file3[indices[idx-14]].detach().cpu().numpy()
-        title = f'PINN, {(indices[idx-14])*float(1/25):.3f}s'
+        title = f'PGONet \n without RC, {(indices[idx-14])*float(1/25):.3f}s'
+    elif idx < 28:  # 第二行
+        img = file4[indices[idx-21]].detach().cpu().numpy()
+        title = f'PINN, {(indices[idx-21])*float(1/25):.3f}s'
+    elif idx < 35:  # 第二行
+        img = file5[indices[idx-28]].detach().cpu().numpy()
+        title = f'UNet, {(indices[idx-28])*float(1/25):.3f}s'
 
     # 假设 img 是二维的（例如灰度图像），如果是三维（例如 RGB），请相应调整
     im = ax.imshow(img.squeeze(), cmap=cmap, norm=norm)  # 使用 viridis 颜色映射
