@@ -209,6 +209,15 @@ def train(model, input, n_iters, time_batch_size,
     for i in range(batch.shape[0]):
         history_loss.append(1e25)
 
+
+    from accelerate import Accelerator
+    accelerator = Accelerator()
+    train_dataloader, model, optimizer = accelerator.prepare(
+        train_dataloader,
+        model,
+        optimizer
+    )
+
     for epoch in range(n_iters):
         # input: [t,c,p,h,w]
         if epoch % 50 == 0:
@@ -258,7 +267,8 @@ def train(model, input, n_iters, time_batch_size,
 
                 if time_batch_id == flag_num[step]-1:
                     optimizer.zero_grad()
-                    loss.backward()  # loss.backward()
+                    #loss.backward()  # loss.backward()
+                    accelerator.backward(loss)
                     optimizer.step()
                     scheduler.step()
 
