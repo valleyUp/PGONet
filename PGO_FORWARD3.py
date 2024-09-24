@@ -14,10 +14,12 @@ import os
 from torch.nn.utils import weight_norm
 from torch.utils.data import DataLoader
 from matplotlib import cm
+from accelerate import Accelerator
 
+accelerator = Accelerator()
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+# os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 torch.manual_seed(66)
 np.random.seed(66)
 torch.set_default_dtype(torch.float32)
@@ -68,8 +70,8 @@ class PGONet(nn.Module):
                                                 padding=1))
 
 
-        self.ref_sol = torch.load('./case/Forward2/o_temp.pt').cuda()
-        self.test_ref_speed = torch.load('./case/Forward2/ref_speed.pt').unsqueeze(dim=0).unsqueeze(dim=0).cuda()
+        self.ref_sol = torch.load('./case/Forward2/o_temp.pt').to(accelerator.device)
+        self.test_ref_speed = torch.load('./case/Forward2/ref_speed.pt').unsqueeze(dim=0).unsqueeze(dim=0).to(accelerator.device)
         self.apply(initialize_weights)
 
     def forward(self, ref_speed, bsize, id, loc_x, loc_y, batch,
@@ -87,7 +89,7 @@ class PGONet(nn.Module):
         step = flag_num - 1
         # x_tt = batch[ntb *bsize+step:ntb *bsize+step+1].detach()
         # x_t = batch[ntb *bsize+step+1:ntb *bsize+step+2].detach()
-        x_t4 = torch.zeros_like(x_t).cuda()
+        x_t4 = torch.zeros_like(x_t).to(accelerator.device)
         x_t4[:, :, 1:-1, 1:-1] = ((2 * x_t[:, :, 1:-1, 1:-1] - x_tt[:, :, 1:-1, 1:-1]) +
                                   (x_t[:, :, 2:, 1:-1] - 4 * x_t[:, :, 1:-1, 1:-1] + x_t[:, :, :-2, 1:-1]
                                    + x_t[:, :, 1:-1, 2:] + x_t[:, :, 1:-1, :-2]) * (
@@ -143,7 +145,7 @@ class loss_generator(nn.Module):
         # spatial derivative operator
         self.flag =False
 
-        self.ref_sol = torch.load('./case/Forward2/o_temp.pt').cuda()
+        self.ref_sol = torch.load('./case/Forward2/o_temp.pt').to(accelerator.device)
         self.num = num
         self.dttt = dtt
         self.dxx = dxx
@@ -193,7 +195,7 @@ def train(model, input, n_iters, time_batch_size,
     tt_flag = False
     loss_func = loss_generator(num, dt, dx, fre)
 
-    ref_speed = torch.load('./case/Forward2/ref_speed.pt').cuda()
+    ref_speed = torch.load('./case/Forward2/ref_speed.pt').to(accelerator.device)
     ref_speed = ref_speed.unsqueeze(dim=0).unsqueeze(dim=0)
     train_dataloader = DataLoader(input, time_batch_size+2, shuffle=False)
 
@@ -208,6 +210,16 @@ def train(model, input, n_iters, time_batch_size,
         history_loss.append(1e25)
 
     input1 = input.clone()
+
+    train_dataloader, model, loss_func, optimizer, scheduler = \
+        accelerator.prepare(
+            train_dataloader,
+            model,
+            loss_func,
+            optimizer,
+            scheduler
+        )
+    
     for epoch in range(n_iters):
         # input: [t,c,p,h,w]
         if epoch % 50 == 0:
@@ -349,7 +361,7 @@ if __name__ == '__main__':
     model = PGONet(
         dt=dt,
         dx=dx,
-        fre=fre).cuda()
+        fre=fre).to(accelerator.device)
     start = time.time()
     train_loss = train(model, input_tensor, n_iters_adam, time_batch_size, dt, dx, n, fre)
     end = time.time()
