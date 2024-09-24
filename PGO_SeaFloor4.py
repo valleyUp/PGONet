@@ -15,13 +15,16 @@ import os
 from torch.nn.utils import weight_norm
 from torch.utils.data import DataLoader
 from matplotlib import cm
+from accelerate import Accelerator
 
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+# os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 torch.manual_seed(66)
 np.random.seed(66)
 torch.set_default_dtype(torch.float32)
+
+accelerator = Accelerator()
 
 # define the high-order finite difference kernels
 
@@ -30,19 +33,19 @@ lapl_op2 = [[[[    0,   1, 0],
              [0, 1,    0]]]]
 
 avg_op1 = torch.tensor([[[
-             [    1/4,   1/2,   1/4]]]]).cuda()
+             [    1/4,   1/2,   1/4]]]]).to(accelerator.device)
 avg_op11 = torch.tensor([[[
-             [    1/16, 3/16,   1/2,   3/16, 1/16]]]]).cuda()
+             [    1/16, 3/16,   1/2,   3/16, 1/16]]]]).to(accelerator.device)
 avg_op2 = torch.tensor([[[[    1/16,   1/16, 1/16],
              [    1/16,   1/2,   1/16],
-             [1/16, 1/16,  1/16]]]]).cuda()
+             [1/16, 1/16,  1/16]]]]).to(accelerator.device)
 avg_op21 = torch.tensor([[[
             [ 1/64,  1/64,   1/64, 1/64, 1/64],
             [ 1/64,  1/32,   1/32, 1/32, 1/64],
              [1/64, 1/32,   1/2,   1/32, 1/64],
              [1/64, 1/32, 1/32,  1/32, 1/64],
     [1 / 64, 1 / 64, 1 / 64, 1 / 64, 1 / 64]
-]]]).cuda()
+]]]).to(accelerator.device)
 solve = []
 class SteepSigmoid(nn.Module):
     def __init__(self, beta=10):
@@ -85,13 +88,13 @@ class PreNet(nn.Module):
         super(PreNet, self).__init__()
         self.num = n
         self.sigmoid_n = sigmoid_n
-        self.ref_sol = torch.load('./case/SeaFloor3/o_temp.pt').cuda()
-        self.ref_sol2 = torch.zeros((self.ref_sol.shape[0], 1, 3, 9)).cuda()
+        self.ref_sol = torch.load('./case/SeaFloor3/o_temp.pt').to(accelerator.device)
+        self.ref_sol2 = torch.zeros((self.ref_sol.shape[0], 1, 3, 9)).to(accelerator.device)
 
         self.fc74 = nn.Linear(3 * self.ref_sol2.shape[2] * self.ref_sol2.shape[3], 64)  # 第二层全连接层
         self.fc75 = nn.Linear(64, 64)  # 第二层全连接层
         self.fc76 = nn.Linear(64, 64*self.num)
-        self.index_matrix = self.generate_index_matrix(64*n-2).cuda().detach()
+        self.index_matrix = self.generate_index_matrix(64*n-2).to(accelerator.device).detach()
         self.steep_sigmoid = SteepSigmoid(beta=1)
         self.fix_layer = nn.Conv2d(1, 1, kernel_size=5, stride=1, padding=2, padding_mode='circular')
         self.fix_layer.weight.requires_grad = False
@@ -116,7 +119,7 @@ class PreNet(nn.Module):
 
     def get_local_Loss(self, res):
         res1 = res.clone()
-        local_res = torch.zeros((res.shape[0], 1, 3, 9)).cuda()
+        local_res = torch.zeros((res.shape[0], 1, 3, 9)).to(accelerator.device)
         local_res[:, :, 0, 0] = res1[:, :, int(37.5 * self.num), 2 * self.num]
         local_res[:, :, 0, 1] = res1[:, :, int(37.5 * self.num), 8 * self.num]
         local_res[:, :, 0, 2] = res1[:, :, int(37.5 * self.num), 16 * self.num]
@@ -150,8 +153,8 @@ class PreNet(nn.Module):
         return local_res
 
     def forward(self, output, bsize, ntb):
-        ref_speed = 1500 * torch.ones((1, 1, 64*self.num, 64*self.num)).cuda()
-        ref_2 = torch.zeros((1, 1, 64*self.num)).cuda()
+        ref_speed = 1500 * torch.ones((1, 1, 64*self.num, 64*self.num)).to(accelerator.device)
+        ref_2 = torch.zeros((1, 1, 64*self.num)).to(accelerator.device)
 
         t_ref_sol = self.get_local_Loss(output)
         for idx in range(ntb):
@@ -190,8 +193,8 @@ class PGONet(nn.Module):
                                                 padding=1))
 
 
-        self.ref_sol = torch.load('./case/SeaFloor3/o_temp.pt').cuda()
-        self.test_ref_speed = torch.load('./case/SeaFloor3/ref_speed.pt').unsqueeze(dim=0).unsqueeze(dim=0).cuda()
+        self.ref_sol = torch.load('./case/SeaFloor3/o_temp.pt').to(accelerator.device)
+        self.test_ref_speed = torch.load('./case/SeaFloor3/ref_speed.pt').unsqueeze(dim=0).unsqueeze(dim=0).to(accelerator.device)
         self.apply(initialize_weights)
         self.internal_state_forward = []
 
@@ -212,7 +215,7 @@ class PGONet(nn.Module):
         #x_tt = batch[ntb * bsize + step:ntb * bsize + step + 1].detach()
         #x_t = batch[ntb * bsize + step + 1:ntb * bsize + step + 2].detach()
 
-        x_t4 = torch.zeros_like(x_t).cuda()
+        x_t4 = torch.zeros_like(x_t).to(accelerator.device)
         x_t4[:, :, 1:-1, 1:-1] = ((2 * x_t[:, :, 1:-1, 1:-1] - x_tt[:, :, 1:-1, 1:-1]) +
                                   (x_t[:, :, 2:, 1:-1] - 4 * x_t[:, :, 1:-1, 1:-1] + x_t[:, :, :-2,
                                                                                                        1:-1]
@@ -271,7 +274,7 @@ class loss_generator(nn.Module):
         # spatial derivative operator
         self.flag =False
 
-        self.ref_sol = torch.load('./case/SeaFloor3/o_temp.pt').cuda()
+        self.ref_sol = torch.load('./case/SeaFloor3/o_temp.pt').to(accelerator.device)
         self.num = num
         self.dttt = dtt
         self.dxx = dxx
@@ -284,7 +287,7 @@ class loss_generator(nn.Module):
 
     def get_local_Loss(self, res):
         res1 = res.clone()
-        local_res = torch.zeros((res.shape[0], 1, 3, 9)).cuda()
+        local_res = torch.zeros((res.shape[0], 1, 3, 9)).to(accelerator.device)
         local_res[:, :, 0, 0] = res1[:, :, int(37.5 * self.num), 2 * self.num]
         local_res[:, :, 0, 1] = res1[:, :, int(37.5 * self.num), 8 * self.num]
         local_res[:, :, 0, 2] = res1[:, :, int(37.5 * self.num), 16 * self.num]
@@ -318,7 +321,7 @@ class loss_generator(nn.Module):
         return local_res
 
     def get_phy_Loss1(self, model, output, c, bsize1, id2, loc_x, loc_y, coffe):
-        output3 = torch.zeros_like(output[:2 + int(coffe * bsize1), :, :, :]).cuda()
+        output3 = torch.zeros_like(output[:2 + int(coffe * bsize1), :, :, :]).to(accelerator.device)
         output3[0:1, :, :, :] = output[0:1, :, :, :]
         output3[1:2, :, :, :] = output[1:2, :, :, :]
         for flag_num in range(0, output3.shape[0] - 2, 1):
@@ -367,7 +370,7 @@ def compute_loss_p(model, output71, loss_func, ntb, ref_speed, bsize, last_loss_
     mse_loss = nn.MSELoss(reduction='mean')
     x1 = np.load('./case/SeaFloor3/x1.npy')
     y1 = np.load('./case/SeaFloor3/y1.npy')
-    ref_local_sol = loss_func.get_ref_Loss().cuda()
+    ref_local_sol = loss_func.get_ref_Loss().to(accelerator.device)
     output72 = output71.clone()
     loss = 0
     local_ref_speed = loss_func.get_local_Loss(ref_speed)
@@ -397,16 +400,17 @@ def compute_loss_p(model, output71, loss_func, ntb, ref_speed, bsize, last_loss_
 
             ref_t_sol_1 = loss_func.get_local_Loss(output11_3)
             ref_t_sol_2 = loss_func.get_local_Loss(ref_local_sol[id*(bsize+2)+idx*size_batch:id*(bsize+2)+(idx+1)*size_batch+2, :, :, :])
-            p_sim +=  mse_loss(output7[2:, :, :, :], output11_3)
+            #TODO why output7 need mannually move to device?
+            p_sim +=  mse_loss(output7[2:, :, :, :].to(accelerator.device), output11_3)
             p_local += (mse_loss(ref_t_sol_1, ref_t_sol_2[2:, :, :, :]))
 
             if epoch % 50 == 0 and id < coffe*ntb:
                 if output_t == None:
                     output_t = output11_3[0:2].clone()
                 elif idx == 0:
-                    output_t = torch.concat((output_t, output11_3[0:2].clone()), dim=0).cuda()
+                    output_t = torch.concat((output_t, output11_3[0:2].clone()), dim=0).to(accelerator.device)
 
-                output_t = torch.concat((output_t, output11_3[2:].clone()), dim=0).cuda()
+                output_t = torch.concat((output_t, output11_3[2:].clone()), dim=0).to(accelerator.device)
 
     loss += 1/(max(last_loss_weight,1)) * (p_sim + p_speed) + p_local
 
@@ -432,13 +436,25 @@ def train(model, model1, input, n_iters, n_iters1, n_iters2, time_batch_size,
     loss_func = loss_generator(num, dt, dx, fre)
     loss_func2 = loss_generator(num, dt, dx, fre)
 
-    ref_speed = 1500*torch.ones((1,1,64*num,64*num)).cuda()
+    ref_speed = 1500*torch.ones((1,1,64*num,64*num)).to(accelerator.device)
     # ref_speed = torch.load('./case/SeaFloor3/ref_speed.pt').unsqueeze(dim=0).unsqueeze(dim=0)
-    last_ref_speed = 1500 * torch.ones((1, 1, 64 * num, 64 * num)).cuda()
+    last_ref_speed = 1500 * torch.ones((1, 1, 64 * num, 64 * num)).to(accelerator.device)
     last_loss_weight = 1e8
 
     train_dataloader = DataLoader(input, time_batch_size+2, shuffle=False)
 
+    train_dataloader, model, model1, loss_func, loss_func2, optimizer, optimizer_p, scheduler, scheduler_p = \
+        accelerator.prepare(
+            train_dataloader, 
+            model, 
+            model1, 
+            loss_func, 
+            loss_func2, 
+            optimizer, 
+            optimizer_p, 
+            scheduler, 
+            scheduler_p
+        )
 
     for epoch in range(n_iters):
         batch_loss = 0.0
@@ -621,12 +637,12 @@ if __name__ == '__main__':
     fig_save_path = './figures/'
     n = 2
 
-    model1 = PreNet(n, sigmoid_n).cuda()
+    model1 = PreNet(n, sigmoid_n).to(accelerator.device)
 
     model = PGONet(
         dt=dt,
         dx=dx,
-        fre=fre).cuda()
+        fre=fre).to(accelerator.device)
 
     start = time.time()
     train_loss = train(model, model1, input_tensor, n_iters_adam, n_iters_adam1, n_iters_adam2, time_batch_size,

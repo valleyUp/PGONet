@@ -33,7 +33,7 @@ norm = matplotlib.colors.Normalize(vmin=-250,vmax=250)
 for idx in range(14):
     ax = axs.flat[idx]  # 扁平化访问
     if idx < 7:  # 第一行
-        img = file1[indices[idx]].cpu().numpy()  # 假设 file1 是张量列表或可以直接索引
+        img = file1[indices[idx]].cpu().detach().numpy()  # 假设 file1 是张量列表或可以直接索引
         title = f'FDM, {(indices[idx])*float(1/1024):.3f}s'
     elif idx < 14:  # 第二行
         img = file2[indices[idx-7]].detach().cpu().numpy()

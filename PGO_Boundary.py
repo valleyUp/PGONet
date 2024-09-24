@@ -15,7 +15,7 @@ from torch.utils.data import DataLoader
 
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+# os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 torch.manual_seed(66)
 np.random.seed(66)
 torch.set_default_dtype(torch.float32)
@@ -140,7 +140,7 @@ class PGONet(nn.Module):
 class loss_generator(nn.Module):
     ''' Loss generator for physics loss '''
 
-    def __init__(self, num, dtt, dxx, fre):
+    def __init__(self, num, dtt, dxx, fre, device):
         ''' Construct the derivatives, X = Width, Y = Height '''
 
         super(loss_generator, self).__init__()
@@ -148,7 +148,7 @@ class loss_generator(nn.Module):
         # spatial derivative operator
         self.flag =False
 
-        self.ref_sol = torch.load('./case/Boundary/o_temp.pt').cuda()
+        self.ref_sol = torch.load('./case/Boundary/o_temp.pt').to(device)
         self.num = num
         self.dttt = dtt
         self.dxx = dxx
@@ -186,6 +186,9 @@ def compute_loss(output71, output2, output3, loss_func, id, id2,
 
 def train(model, input, n_iters, time_batch_size,
           dt, dx, num, fre):
+    from accelerate import Accelerator
+    accelerator = Accelerator()
+
     x1 = np.load('./case/Boundary/x1.npy')
     y1 = np.load('./case/Boundary/y1.npy')
     # load previous9 model
@@ -193,7 +196,7 @@ def train(model, input, n_iters, time_batch_size,
     scheduler = StepLR(optimizer, step_size=50000, gamma=0.975)
     alpha = 1
     tt_flag = False
-    loss_func = loss_generator(num, dt, dx, fre)
+    loss_func = loss_generator(num, dt, dx, fre, accelerator.device)
 
     ref_speed = torch.load('./case/Boundary/ref_speed.pt').cuda()
     ref_speed = ref_speed.unsqueeze(dim=0).unsqueeze(dim=0)
@@ -209,13 +212,12 @@ def train(model, input, n_iters, time_batch_size,
     for i in range(batch.shape[0]):
         history_loss.append(1e25)
 
-
-    from accelerate import Accelerator
-    accelerator = Accelerator()
-    train_dataloader, model, optimizer = accelerator.prepare(
+    train_dataloader, model, loss_func, optimizer, scheduler = accelerator.prepare(
         train_dataloader,
         model,
-        optimizer
+        loss_func,
+        optimizer,
+        scheduler
     )
 
     for epoch in range(n_iters):
