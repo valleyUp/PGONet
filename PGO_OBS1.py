@@ -494,7 +494,7 @@ def train(model, model1, input, n_iters, n_iters1, n_iters2, time_batch_size,
 
                     if time_batch_id == flag_num[step] - 1:
                         optimizer.zero_grad()
-                        loss.backward()  # loss.backward()
+                        accelerator.backward(loss)
                         optimizer.step()
                         scheduler.step()
 
@@ -538,7 +538,7 @@ def train(model, model1, input, n_iters, n_iters1, n_iters2, time_batch_size,
             loss_p, loss_1, loss_2, loss_3, output_t = \
                 compute_loss_p(model, output_t1.clone().detach(), loss_func2, num_time_batch, ref_speed1, time_batch_size, last_loss_weight1, size_batch, last_ref_speed, tc, epoch)
             optimizer_p.zero_grad()
-            loss_p.backward()
+            accelerator.backward(loss_p)
             optimizer_p.step()
             scheduler_p.step()
             ref_speed = ref_speed1.clone()

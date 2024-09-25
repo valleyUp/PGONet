@@ -393,7 +393,7 @@ if __name__ == "__main__":
 
         loss = domain_loss
 
-        loss.backward()
+        accelerator.backward(loss)
         optimiser.step()
         scheduler.step()
         print('Time: %.3f seconds, It: %d, Loss:%.3e, Bound: %.3e, Init: %.3e, Domain: %.3e' % (

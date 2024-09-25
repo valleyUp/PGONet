@@ -267,7 +267,7 @@ def train(model, input, n_iters, time_batch_size,
 
                 if time_batch_id == flag_num[step]-1:
                     optimizer.zero_grad()
-                    loss.backward()  # loss.backward()
+                    accelerator.backward(loss)
                     optimizer.step()
                     scheduler.step()
 

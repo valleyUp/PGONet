@@ -565,7 +565,7 @@ class Training:
             loss = 1e3*(initial_loss + boundary_loss) + domain_loss
             self.loss_list.append(loss.item())
 
-            loss.backward()
+            accelerator.backward(loss)
             self.optimiser.step()
             self.scheduler.step()
 
